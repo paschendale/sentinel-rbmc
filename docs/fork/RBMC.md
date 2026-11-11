@@ -79,4 +79,7 @@ pnpm install && pnpm -r typecheck && pnpm --filter @sentinel/api test
 
 ## Build and deployment
 
+The database of the instance that ran the old `rbmc` branch needed one change before its first start on this fork: [switch-to-fork.sql](switch-to-fork.sql) renames that branch's migration records to their current names, so no migration runs twice. A new database needs nothing.
+
+
 The **Image** workflow builds the full image from `main` on every push and publishes `paschendale/sentinel-rbmc:latest` and `:sha-<commit>`. The deployment (`disbelief/sentinel-rbmc` in the paschendale.net repository) tracks `latest`.

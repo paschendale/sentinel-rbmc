@@ -1,0 +1,107 @@
+# Pulls a Sentinel release (or upstream main) into this fork through a pull request.
+# Run it from the Actions tab whenever you want to update; CI runs the tests on the PR.
+name: Sync upstream
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Upstream tag or branch to merge (e.g. v1.32.0). Empty = main.
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sentinel
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Merge upstream into a branch
+        id: merge
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          set -e
+          ref="${REF:-main}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/territorial-dev/sentinel.git
+          git fetch --tags upstream
+          if git rev-parse -q --verify "refs/tags/$ref" >/dev/null; then target="refs/tags/$ref"; else target="upstream/$ref"; fi
+          branch="sync/upstream-$(echo "$ref" | tr '/' '-')-$(date -u +%Y%m%d%H%M)"
+          git checkout -b "$branch"
+          if git merge --no-edit "$target"; then
+            echo "conflicts=false" >> "$GITHUB_OUTPUT"
+          else
+            # Commit the conflict markers so the PR shows exactly what needs a hand.
+            git add -A
+            git commit --no-edit -m "Merge $ref from upstream (conflicts to resolve)"
+            echo "conflicts=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$(git rev-list --count origin/main..HEAD)" = "0" ]; then
+            echo "Already up to date with $ref."; echo "nothing=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          git push origin "$branch"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+      # A pull request opened with this workflow's token does not start other workflows, so the
+      # tests run here and their result goes in the PR description.
+      - uses: pnpm/action-setup@v4
+        if: steps.merge.outputs.nothing != 'true' && steps.merge.outputs.conflicts == 'false'
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        if: steps.merge.outputs.nothing != 'true' && steps.merge.outputs.conflicts == 'false'
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Typecheck and tests
+        id: tests
+        if: steps.merge.outputs.nothing != 'true' && steps.merge.outputs.conflicts == 'false'
+        continue-on-error: true
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/sentinel
+          ADMIN_USERNAME: admin
+          ADMIN_PASSWORD: admin
+          JWT_SECRET: test-secret
+        run: |
+          set -e
+          pnpm install --frozen-lockfile
+          pnpm --filter @sentinel/shared build
+          pnpm -r typecheck
+          cd apps/api && pnpm migrate:ci && pnpm test
+      - name: Open the pull request
+        if: steps.merge.outputs.nothing != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          note="Merged cleanly."
+          case "${{ steps.tests.outcome }}" in
+            success) note="$note Typecheck and tests passed." ;;
+            failure) note="$note **Typecheck or tests failed:** see the Sync upstream run before merging." ;;
+          esac
+          if [ "${{ steps.merge.outputs.conflicts }}" = "true" ]; then
+            note="**Has conflicts:** resolve the markers on this branch (usually apps/web/package.json and pnpm-lock.yaml: keep both sides, then pnpm install) before merging."
+          fi
+          gh pr create --base main --head "${{ steps.merge.outputs.branch }}" \
+            --title "Update Sentinel to ${{ steps.merge.outputs.ref }}" \
+            --body "Merges upstream ${{ steps.merge.outputs.ref }} from territorial-dev/sentinel. ${note} Read upstream's release notes for upgrade notes before merging."

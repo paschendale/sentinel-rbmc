@@ -76,11 +76,14 @@ function useTheme(): Theme {
   return theme
 }
 
+/** Protomaps flavours: dark as is, and grayscale for light so the map stays as neutral as the page. */
+const FLAVOR: Record<Theme, string> = { dark: 'dark', light: 'grayscale' }
+
 function basemapStyle(theme: Theme): StyleSpecification {
   return {
     version: 8,
     glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
-    sprite: `https://protomaps.github.io/basemaps-assets/sprites/v4/${theme}`,
+    sprite: `https://protomaps.github.io/basemaps-assets/sprites/v4/${FLAVOR[theme]}`,
     sources: {
       [BASEMAP_SOURCE]: {
         type: 'vector',
@@ -88,7 +91,7 @@ function basemapStyle(theme: Theme): StyleSpecification {
         attribution: '<a href="https://protomaps.com">Protomaps</a> © <a href="https://openstreetmap.org">OpenStreetMap</a>',
       },
     },
-    layers: protomapsLayers(BASEMAP_SOURCE, namedFlavor(theme), { lang: 'pt' }),
+    layers: protomapsLayers(BASEMAP_SOURCE, namedFlavor(FLAVOR[theme]), { lang: 'pt' }),
   } as StyleSpecification
 }
 

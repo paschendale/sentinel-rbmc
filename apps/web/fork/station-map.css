@@ -1,0 +1,34 @@
+/* The RBMC station map. Tokens only: colours, type and spacing follow the design system. */
+
+.rbmc-lead { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-4) 0 var(--space-6); }
+.rbmc-lead__body { display: flex; flex-direction: column; gap: var(--space-3); }
+.rbmc-lead__about { margin: 0; font: 400 12px/16px var(--font-mono); color: var(--fg-subtle); }
+.rbmc-lead__about a { color: inherit; }
+.rbmc-lead__about a:hover { color: var(--fg); }
+
+.rbmc-map { position: relative; height: 480px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface); }
+.rbmc-map--loading { height: 480px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.rbmc-map__canvas { position: absolute; inset: 0; }
+@media (max-width: 640px) {
+  .rbmc-map, .rbmc-map--loading { height: 360px; }
+}
+
+.rbmc-map__panel { position: absolute; top: var(--space-3); left: var(--space-3); z-index: 2; width: min(300px, calc(100% - 2 * var(--space-3))); box-shadow: var(--shadow-popover); background: var(--surface-raised); }
+.rbmc-map__panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.rbmc-map__code { font: 600 16px/20px var(--font-mono); color: var(--fg); }
+.rbmc-map__place { font: 400 12px/16px var(--font-sans); color: var(--fg-muted); }
+.rbmc-map__link { font: 400 12px/16px var(--font-mono); color: var(--fg-muted); }
+.rbmc-map__link:hover { color: var(--fg); }
+
+.rbmc-legend { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); font: 400 12px/16px var(--font-mono); }
+.rbmc-legend__total { color: var(--fg-subtle); }
+
+/* MapLibre's controls in the page's colours. */
+.rbmc-map .maplibregl-ctrl-group { background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: none; }
+.rbmc-map .maplibregl-ctrl-group button + button { border-top: 1px solid var(--border); }
+.rbmc-map .maplibregl-ctrl-icon { filter: var(--rbmc-ctrl-filter, none); }
+:root[data-theme="dark"] .rbmc-map { --rbmc-ctrl-filter: invert(1); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .rbmc-map { --rbmc-ctrl-filter: invert(1); } }
+.rbmc-map .maplibregl-ctrl-attrib { background: var(--surface-raised); color: var(--fg-subtle); font: 400 11px/14px var(--font-sans); }
+.rbmc-map .maplibregl-ctrl-attrib a { color: var(--fg-muted); }
+.rbmc-map .maplibregl-cooperative-gesture-screen { background: var(--scrim); color: var(--fg); font: 400 14px/20px var(--font-sans); }
